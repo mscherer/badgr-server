@@ -498,3 +498,7 @@ SAML_LAST_NAME_KEYS = ['LastName', 'sn', 'surname', 'http://schemas.xmlsoap.org/
 # You may use an HTTP service to convert SVG images to PNG for higher reliability than the built-in Python option.
 SVG_HTTP_CONVERSION_ENABLED = False
 SVG_HTTP_CONVERSION_ENDPOINT = ''  # Include scheme, e.g. 'http://example.com/convert-to-png'
+
+# Allow to send path to an existing image in image fields
+# For eg file:///uploads/issuer/xyz.png will point to MEDIA_ROOT/uploads/issuer/xyz.png
+ALLOW_IMAGE_PATHS = False
