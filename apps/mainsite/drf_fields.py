@@ -66,7 +66,6 @@ class ValidImageField(Base64FileField):
                 path_to_existing_image = Path('.' + parsed_url.path)
 
                 try:
-                    # default_storage checks inside media folder
                     if not default_storage.exists(path_to_existing_image):
                         raise ValidationError('File does not exist')
 
@@ -76,6 +75,7 @@ class ValidImageField(Base64FileField):
                         existing_image = ContentFile(f.read(), name=f.name)
 
                     return existing_image
+
                 except (SuspiciousFileOperation, ValueError) as e:
                     raise ValidationError('Path points to file outside media context')
 

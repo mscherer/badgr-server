@@ -31,9 +31,9 @@ from django.core.cache import cache
 
 import badgrlog
 from entity.models import BaseVersionedEntity
-from issuer.managers import BadgeInstanceManager, IssuerManager, BadgeClassManager, BadgeInstanceEvidenceManager
+from issuer.managers import BadgeInstanceManager, IssuerManager, BadgeClassManager, BadgeInstanceEvidenceManager, DontSaveIfFileExists
 from mainsite.managers import SlugOrJsonIdCacheModelManager
-from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage, PngImagePreview
+from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage, PngImagePreview, SkipExistingFileScrubbing
 from mainsite.models import BadgrApp, EmailBlacklist
 from mainsite import blacklist
 from mainsite.utils import OriginSetting, generate_entity_uri
@@ -175,7 +175,8 @@ class BaseOpenBadgeExtension(cachemodel.CacheModel):
         abstract = True
 
 
-class Issuer(ResizeUploadedImage,
+class Issuer(SkipExistingFileScrubbing,
+             ResizeUploadedImage,
              ScrubUploadedSvgImage,
              PngImagePreview,
              BaseAuditedModel,
@@ -194,8 +195,8 @@ class Issuer(ResizeUploadedImage,
     badgrapp = models.ForeignKey('mainsite.BadgrApp', blank=True, null=True, default=None, on_delete=models.SET_NULL)
 
     name = models.CharField(max_length=1024)
-    image = models.FileField(upload_to='uploads/issuers', blank=True, null=True)
-    image_preview = models.FileField(upload_to='uploads/issuers', blank=True, null=True)
+    image = models.FileField(upload_to='uploads/issuers', blank=True, null=True, storage=DontSaveIfFileExists())
+    image_preview = models.FileField(upload_to='uploads/issuers', blank=True, null=True, storage=DontSaveIfFileExists())
     description = models.TextField(blank=True, null=True, default=None)
     url = models.CharField(max_length=254, blank=True, null=True, default=None)
     email = models.CharField(max_length=254, blank=True, null=True, default=None)
@@ -454,7 +455,8 @@ def get_user_or_none(recipient_id, recipient_type):
     return user
 
 
-class BadgeClass(ResizeUploadedImage,
+class BadgeClass(SkipExistingFileScrubbing,
+                 ResizeUploadedImage,
                  ScrubUploadedSvgImage,
                  HashUploadedImage,
                  PngImagePreview,
@@ -483,8 +485,8 @@ class BadgeClass(ResizeUploadedImage,
     #slug = AutoSlugField(max_length=255, populate_from='name', unique=True, blank=False, editable=True)
 
     name = models.CharField(max_length=255)
-    image = models.FileField(upload_to='uploads/badges', blank=True)
-    image_preview = models.FileField(upload_to='uploads/badges', blank=True, null=True)
+    image = models.FileField(upload_to='uploads/badges', blank=True, storage=DontSaveIfFileExists())
+    image_preview = models.FileField(upload_to='uploads/badges', blank=True, null=True, storage=DontSaveIfFileExists())
     description = models.TextField(blank=True, null=True, default=None)
 
     criteria_url = models.CharField(max_length=254, blank=True, null=True, default=None)
