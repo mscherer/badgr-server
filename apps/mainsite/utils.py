@@ -5,7 +5,6 @@ Utility functions and constants that might be used across the project.
 import io
 import base64
 import datetime
-import functools
 import hashlib
 import json
 import puremagic
@@ -483,14 +482,9 @@ def convert_svg_to_png(svg_string, height, width):
         return False
 
 
-def skip_existing_images(func):
-    @functools.wraps(func)
-    def skip(self, *args, **kwargs):
-        image_exists = False
+def image_exists(image):
+    exists = False
+    if settings.ALLOW_IMAGE_PATHS and image and default_storage.exists(image.name):
+        exists = True
 
-        if settings.ALLOW_IMAGE_PATHS and self.image and default_storage.exists(self.image.name):
-            image_exists = True
-
-        return func(self, image_exists, *args, **kwargs)
-
-    return skip
+    return exists

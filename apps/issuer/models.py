@@ -33,7 +33,7 @@ import badgrlog
 from entity.models import BaseVersionedEntity
 from issuer.managers import BadgeInstanceManager, IssuerManager, BadgeClassManager, BadgeInstanceEvidenceManager, DontSaveIfFileExists
 from mainsite.managers import SlugOrJsonIdCacheModelManager
-from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage, PngImagePreview, SkipExistingFileScrubbing
+from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage, PngImagePreview
 from mainsite.models import BadgrApp, EmailBlacklist
 from mainsite import blacklist
 from mainsite.utils import OriginSetting, generate_entity_uri

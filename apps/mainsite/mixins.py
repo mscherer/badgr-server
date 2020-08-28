@@ -10,7 +10,7 @@ from resizeimage.resizeimage import resize_contain
 
 from defusedxml.cElementTree import parse as safe_parse
 
-from mainsite.utils import verify_svg, scrubSvgElementTree, hash_for_image, convert_svg_to_png, skip_existing_images
+from mainsite.utils import verify_svg, scrubSvgElementTree, hash_for_image, convert_svg_to_png
 
 
 def _decompression_bomb_check(image, max_pixels=Image.MAX_IMAGE_PIXELS):
@@ -63,9 +63,8 @@ class PngImagePreview(object):
 
 class ResizeUploadedImage(object):
 
-    @skip_existing_images
-    def save(self, image_exists=False, force_resize=False, *args, **kwargs):
-        if ((self.pk is None and self.image) or force_resize) and not image_exists:
+    def save(self, force_resize=False, *args, **kwargs):
+        if ((self.pk is None and self.image) or force_resize) and not image_exists(self.image):
             try:
                 image = Image.open(self.image)
                 if _decompression_bomb_check(image):
@@ -98,9 +97,8 @@ class ResizeUploadedImage(object):
 
 class ScrubUploadedSvgImage(object):
 
-    @skip_existing_images
-    def save(self, image_exists=False, *args, **kwargs):
-        if self.image and verify_svg(self.image.file) and not image_exists:
+    def save(self, *args, **kwargs):
+        if self.image and verify_svg(self.image.file) and not image_exists(self.image):
             self.image.file.seek(0)
 
             tree = safe_parse(self.image.file)

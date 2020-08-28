@@ -500,5 +500,5 @@ SVG_HTTP_CONVERSION_ENABLED = False
 SVG_HTTP_CONVERSION_ENDPOINT = ''  # Include scheme, e.g. 'http://example.com/convert-to-png'
 
 # Allow to send path to an existing image in image fields
-# For eg file:///uploads/issuer/xyz.png will point to MEDIA_ROOT/uploads/issuer/xyz.png
+# See README
 ALLOW_IMAGE_PATHS = False
