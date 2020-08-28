@@ -6,26 +6,16 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.db import models
-from django.core.files import File
-from django.core.files.storage import default_storage
 from resizeimage.resizeimage import resize_contain
 
 from defusedxml.cElementTree import parse as safe_parse
 
-from mainsite.utils import verify_svg, scrubSvgElementTree, hash_for_image, convert_svg_to_png
-from mainsite.utils import verify_svg, scrubSvgElementTree, convert_svg_to_png
+from mainsite.utils import verify_svg, scrubSvgElementTree, hash_for_image, convert_svg_to_png, skip_existing_images
 
 
 def _decompression_bomb_check(image, max_pixels=Image.MAX_IMAGE_PIXELS):
     pixels = image.size[0] * image.size[1]
     return pixels > max_pixels
-
-class SkipExistingFileScrubbing():
-    def save(self, *args, **kwargs):
-        if settings.ALLOW_IMAGE_PATHS and self.image and default_storage.exists(self.image.name):
-            return super(ScrubUploadedSvgImage, self).save(*args, **kwargs)
-
-        return super(SkipExistingFileScrubbing, self).save(*args, **kwargs)
 
 
 class HashUploadedImage(models.Model):
@@ -73,8 +63,9 @@ class PngImagePreview(object):
 
 class ResizeUploadedImage(object):
 
-    def save(self, force_resize=False, *args, **kwargs):
-        if (self.pk is None and self.image) or force_resize:
+    @skip_existing_images
+    def save(self, image_exists=False, force_resize=False, *args, **kwargs):
+        if ((self.pk is None and self.image) or force_resize) and not image_exists:
             try:
                 image = Image.open(self.image)
                 if _decompression_bomb_check(image):
@@ -107,8 +98,9 @@ class ResizeUploadedImage(object):
 
 class ScrubUploadedSvgImage(object):
 
-    def save(self, *args, **kwargs):
-        if self.image and verify_svg(self.image.file):
+    @skip_existing_images
+    def save(self, image_exists=False, *args, **kwargs):
+        if self.image and verify_svg(self.image.file) and not image_exists:
             self.image.file.seek(0)
 
             tree = safe_parse(self.image.file)

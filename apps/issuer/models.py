@@ -175,8 +175,7 @@ class BaseOpenBadgeExtension(cachemodel.CacheModel):
         abstract = True
 
 
-class Issuer(SkipExistingFileScrubbing,
-             ResizeUploadedImage,
+class Issuer(ResizeUploadedImage,
              ScrubUploadedSvgImage,
              PngImagePreview,
              BaseAuditedModel,
@@ -455,8 +454,7 @@ def get_user_or_none(recipient_id, recipient_type):
     return user
 
 
-class BadgeClass(SkipExistingFileScrubbing,
-                 ResizeUploadedImage,
+class BadgeClass(ResizeUploadedImage,
                  ScrubUploadedSvgImage,
                  HashUploadedImage,
                  PngImagePreview,

@@ -5,6 +5,7 @@ Utility functions and constants that might be used across the project.
 import io
 import base64
 import datetime
+import functools
 import hashlib
 import json
 import puremagic
@@ -18,6 +19,7 @@ import uuid
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
+from django.core.files.storage import default_storage
 from django.core.files.storage import DefaultStorage
 from rest_framework.exceptions import UnsupportedMediaType
 from django.urls import get_callable
@@ -479,3 +481,16 @@ def convert_svg_to_png(svg_string, height, width):
     except ValueError:
         # Issuing decoding response JSON
         return False
+
+
+def skip_existing_images(func):
+    @functools.wraps(func)
+    def skip(self, *args, **kwargs):
+        image_exists = False
+
+        if settings.ALLOW_IMAGE_PATHS and self.image and default_storage.exists(self.image.name):
+            image_exists = True
+
+        return func(self, image_exists, *args, **kwargs)
+
+    return skip
