@@ -5,9 +5,13 @@ from allauth.socialaccount.providers.oauth.views import (OAuthAdapter,
                                                          OAuthLoginView,
                                                          OAuthCallbackView)
 from .provider import KonyProvider
+from apps.badgrsocialauth.exceptions import AuthProviderNotConfigured
 
 
 class KonyAPI(OAuth):
+    if 'kony' not in app_settings.PROVIDERS:
+        raise AuthProviderNotConfigured("Could not find key: \'kony\' in settings.SOCIALACCOUNT_PROVIDERS!")
+
     if app_settings.PROVIDERS['kony'].get('environment', 'dev') == 'dev':
         url = 'https://api.dev-kony.com/api/v1_0/whoami'
     elif app_settings.PROVIDERS['kony'].get('environment', 'prod') == 'prod':
@@ -21,6 +25,9 @@ class KonyAPI(OAuth):
 
 class KonyOAuthAdapter(OAuthAdapter):
     provider_id = KonyProvider.id
+
+    if 'kony' not in app_settings.PROVIDERS:
+        raise AuthProviderNotConfigured("Could not find key: \'kony\' in settings.SOCIALACCOUNT_PROVIDERS!")
 
     if app_settings.PROVIDERS['kony'].get('environment', 'dev') == 'dev':
         request_token_url = 'https://manage.dev-kony.com/oauth/request_token'

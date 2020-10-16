@@ -1,0 +1,2 @@
+class AuthProviderNotConfigured(Exception):
+    pass
