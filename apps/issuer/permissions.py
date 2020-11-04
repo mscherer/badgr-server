@@ -78,7 +78,7 @@ class MayIssueBadgeClass(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, badgeclass):
-        return request.user.has_perm('issuer.can_issue_badge', badgeclass)
+        return _is_server_admin(request) or request.user.has_perm('issuer.can_issue_badge', badgeclass)
 
 
 class MayEditBadgeClass(permissions.BasePermission):
@@ -91,6 +91,8 @@ class MayEditBadgeClass(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, badgeclass):
+        if _is_server_admin(request):
+            return True
         if request.method in SAFE_METHODS:
             return request.user.has_perm('issuer.can_issue_badge', badgeclass)
         else:
@@ -103,6 +105,8 @@ class IsOwnerOrStaff(permissions.BasePermission):
     staff for safe operations.
     """
     def has_object_permission(self, request, view, issuer):
+        if _is_server_admin(request):
+            return True
         if request.method in SAFE_METHODS:
             return request.user.has_perm('issuer.is_staff', issuer)
         else:
@@ -118,6 +122,8 @@ class IsEditor(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, issuer):
+        if _is_server_admin(request):
+            return True
         if request.method in SAFE_METHODS:
             return request.user.has_perm('issuer.is_staff', issuer)
         else:
@@ -149,17 +155,19 @@ class IsStaff(permissions.BasePermission):
     model: Issuer
     """
     def has_object_permission(self, request, view, issuer):
-        return request.user.has_perm('issuer.is_staff', issuer)
+        return _is_server_admin(request) or request.user.has_perm('issuer.is_staff', issuer)
 
 
 class ApprovedIssuersOnly(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
+        if _is_server_admin(request):
+            return True
         if request.method == 'POST' and getattr(settings, 'BADGR_APPROVED_ISSUERS_ONLY', False):
             return request.user.has_perm('issuer.add_issuer')
         return True
 
     def has_permission(self, request, view):
-        return self.has_object_permission(request, view, None)
+        return _is_server_admin(request) or self.has_object_permission(request, view, None)
 
 
 class IsIssuerEditor(IsEditor):
@@ -167,7 +175,7 @@ class IsIssuerEditor(IsEditor):
     Used as a proxy permission for objects that have a .cached_issuer property and want to delegate permissions to issuer
     """
     def has_object_permission(self, request, view, recipient_group):
-        return super(IsIssuerEditor, self).has_object_permission(request, view, recipient_group.cached_issuer)
+        return _is_server_admin(request) or super(IsIssuerEditor, self).has_object_permission(request, view, recipient_group.cached_issuer)
 
 
 class IsIssuerStaff(IsStaff):
@@ -175,7 +183,7 @@ class IsIssuerStaff(IsStaff):
     Used as a proxy permission for objects that have a .cached_issuer property and want to delegate permissions to issuer
     """
     def has_object_permission(self, request, view, recipient_group):
-        return super(IsIssuerStaff, self).has_object_permission(request, view, recipient_group.cached_issuer)
+        return _is_server_admin(request) or super(IsIssuerStaff, self).has_object_permission(request, view, recipient_group.cached_issuer)
 
 
 class AuditedModelOwner(permissions.BasePermission):
@@ -197,6 +205,8 @@ class VerifiedEmailMatchesRecipientIdentifier(permissions.BasePermission):
     model: BadgeInstance
     """
     def has_object_permission(self, request, view, obj):
+        if _is_server_admin(request):
+            return True
         recipient_identifier = getattr(obj, 'recipient_identifier', None)
         if getattr(obj, 'pending', False):
             return recipient_identifier and recipient_identifier in request.user.all_recipient_identifiers
@@ -207,7 +217,7 @@ class AuthorizationIsBadgrOAuthToken(permissions.BasePermission):
     message = 'Invalid token'
 
     def has_permission(self, request, view):
-        return isinstance(request.auth, oauth2_provider.models.AccessToken)
+        return _is_server_admin(request) or isinstance(request.auth, oauth2_provider.models.AccessToken)
 
 
 class BadgrOAuthTokenHasScope(permissions.BasePermission):
@@ -282,3 +292,10 @@ class BadgrOAuthTokenHasEntityScope(permissions.BasePermission):
         if isinstance(view_scopes, dict):
             return view_scopes.get(request.method.lower(), [])
         return view_scopes
+
+
+def _is_server_admin(request):
+    try:
+        return 'rw:serverAdmin' in request.auth.scopes
+    except AttributeError:
+        return False

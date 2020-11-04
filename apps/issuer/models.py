@@ -925,7 +925,7 @@ class BadgeInstance(BaseAuditedModel,
             output_file=new_image
         )
 
-        new_filename = generate_rebaked_filename(self.image.name)
+        new_filename = generate_rebaked_filename(self.image.name, self.cached_badgeclass.image.name)
         new_name = default_storage.save(new_filename, ContentFile(new_image.read()))
         default_storage.delete(self.image.name)
         self.image.name = new_name
@@ -973,27 +973,9 @@ class BadgeInstance(BaseAuditedModel,
         self.image.delete()
         self.save()
 
-        # remove BadgeObjectiveAwards from badgebook if needed
-        if apps.is_installed('badgebook'):
-            try:
-                from badgebook.models import BadgeObjectiveAward, LmsCourseInfo
-                try:
-                    award = BadgeObjectiveAward.cached.get(badge_instance_id=self.id)
-                except BadgeObjectiveAward.DoesNotExist:
-                    pass
-                else:
-                    award.delete()
-            except ImportError:
-                pass
-
-    def notify_earner(self, badgr_app=None):
+    def notify_earner(self, badgr_app=None, renotify=False):
         """
-        Sends an email notification to the badge earner.
-        This process involves creating a badgeanalysis.models.OpenBadge
-        returns the EarnerNotification instance.
-
-        TODO: consider making this an option on initial save and having a foreign key to
-        the notification model instance (which would link through to the OpenBadge)
+        Sends an email notification to the badge recipient.
         """
         if self.recipient_type != RECIPIENT_TYPE_EMAIL:
             return
@@ -1033,10 +1015,12 @@ class BadgeInstance(BaseAuditedModel,
                 'download_url': self.public_url + "?action=download",
                 'site_name': badgr_app.name,
                 'site_url': badgr_app.signup_redirect,
-                'badgr_app': badgr_app,
+                'badgr_app': badgr_app
             }
             if badgr_app.cors == 'badgr.io':
                 email_context['promote_mobile'] = True
+            if renotify:
+                email_context['renotify'] = 'Reminder'
         except KeyError as e:
             # A property isn't stored right in json
             raise e
