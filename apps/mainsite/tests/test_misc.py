@@ -1,6 +1,7 @@
 import hashlib
 from hashlib import sha256
 import mock
+from PIL import Image
 from operator import attrgetter
 import os
 import pytz
@@ -11,6 +12,7 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 import warnings
 
+from django.conf import settings
 from django.core import mail
 from django.core.cache import cache, CacheKeyWarning
 from django.core.exceptions import ValidationError
@@ -332,6 +334,7 @@ class TestBlacklist(BadgrTestCase):
 class TestRemoteFileToStorage(SetupIssuerHelper, BadgrTestCase):
     mime_types = ['image/png', 'image/svg+xml', 'image/jpeg']
     test_uploaded_path = os.path.join('testfiles')
+    path_to_mediafiles = getattr(settings, 'MEDIA_ROOT')
     test_url = 'http://example.com/123abc'
 
     def tearDown(self):
@@ -470,6 +473,57 @@ class TestRemoteFileToStorage(SetupIssuerHelper, BadgrTestCase):
 
         self.assertTrue(storage_name.endswith(expected_extension))
         self.assertTrue(default_storage.size(storage_name) > 0)
+
+    @responses.activate
+    def test_fetch_store_and_resize_png_height_from_800_to_512_1to1_ratio(self):
+        expected_extension = '.png'
+
+        responses.add(
+            responses.GET,
+            self.test_url,
+            body=open(self.get_test_image_800x800(), 'rb').read(),
+            status=200
+        )
+
+        status_code, storage_name = fetch_remote_file_to_storage(
+            self.test_url,
+            upload_to=self.test_uploaded_path,
+            allowed_mime_types=self.mime_types,
+            resize_to_height=512
+        )
+
+        image = Image.open(os.path.join(self.path_to_mediafiles, storage_name))
+        self.assertEqual(image.width, 512)
+        self.assertEqual(image.height, 512)
+        self.assertTrue(storage_name.endswith(expected_extension))
+        self.assertTrue(default_storage.size(storage_name) > 0)
+
+    @responses.activate
+    def test_fetch_store_and_resize_png_height_from_800_to_512_16to9_ratio(self):
+        expected_extension = '.png'
+
+        responses.add(
+            responses.GET,
+            self.test_url,
+            body=open(self.get_test_image_800x800(), 'rb').read(),
+            status=200
+        )
+
+        status_code, storage_name = fetch_remote_file_to_storage(
+            self.test_url,
+            upload_to=self.test_uploaded_path,
+            allowed_mime_types=self.mime_types,
+            resize_to_height=512,
+            aspect_ratio=(1.77, 1)
+        )
+
+        image = Image.open(os.path.join(self.path_to_mediafiles, storage_name))
+
+        self.assertEqual(image.height, 512)
+        self.assertEqual(image.width, 906)
+        self.assertTrue(storage_name.endswith(expected_extension))
+        self.assertTrue(default_storage.size(storage_name) > 0)
+
 
     @responses.activate
     def test_jpeg_without_extension(self):

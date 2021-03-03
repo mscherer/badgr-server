@@ -2,20 +2,25 @@
 import base64
 import hashlib
 import json
+import os
 import random
 import string
+import shutil
 from urllib import parse
 
 from openbadges.verifier.openbadges_context import OPENBADGES_CONTEXT_V2_URI, OPENBADGES_CONTEXT_V2_DICT
 import responses
 import mock
 
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.utils.encoding import force_text
 from rest_framework.fields import DateTimeField
 
 from backpack.tests.utils import setup_resources
 from mainsite.models import BadgrApp
 from mainsite.tests import BadgrTestCase, SetupIssuerHelper
+from mainsite.utils import fetch_remote_file_to_storage
 
 
 class ManifestFileTests(BadgrTestCase):
@@ -51,6 +56,54 @@ class ManifestFileTests(BadgrTestCase):
 
 
 class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
+    def get_test_upload_path(self, *args):
+        return 'testfiles'
+
+    def setUp(self):
+        super(BadgeConnectOAuthTests, self).setUp()
+
+        from mainsite.oauth2_api import RegistrationSerializer
+
+        upload_to_path = self.get_test_upload_path()
+        """" 
+        patching function so upload_to argument points to the testfiles directory.
+        This guaranties any uploaded files can be clean up after testing
+        """
+        def patched_fetch_and_process_logo_uri(self, logo_uri):
+            return fetch_remote_file_to_storage(logo_uri,
+                                                upload_to=upload_to_path,
+                                                allowed_mime_types=['image/png', 'image/svg+xml'],
+                                                resize_to_height=512)
+        self.patcher = mock.patch.object(RegistrationSerializer, "fetch_and_process_logo_uri",
+                                         patched_fetch_and_process_logo_uri)
+        self.patcher.start()
+
+    def tearDown(self):
+        super(BadgeConnectOAuthTests, self).tearDown()
+
+        testfile_path = os.path.join('{base_url}/{upload_to}/'.format(
+            base_url=default_storage.location,
+            upload_to=self.get_test_upload_path(),
+        ))
+        if os.path.exists(testfile_path):
+            try:
+                shutil.rmtree(testfile_path)
+            except Exception as e:
+                print("testfiles were not deleted, %s" % e)
+
+        self.patcher.stop()
+
+    def _register_mock_GET_response_for_logo_uri(self, logo_uri, test_image_path):
+        """
+        Returns a local test image when RegistrationSerializer#create tries to fetch the logo at logo_uri
+        """
+        responses.add(
+            responses.GET,
+            logo_uri,
+            body=open(test_image_path, 'rb').read(),
+            status=200
+        )
+
     def _perform_registration_and_authentication(self, **kwargs):
         requested_scopes = [
             "https://purl.imsglobal.org/spec/ob/v2p1/scope/assertion.readonly",
@@ -81,10 +134,19 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
 
         user = self.setup_user(email='test@example.com', authenticate=True)
 
+        self._register_mock_GET_response_for_logo_uri(registration_data['logo_uri'], self.get_test_image_path())
+
         response = self.client.post('/o/register', registration_data)
         client_id = response.data['client_id']
-        for required_property in ['client_id', 'client_secret', 'client_id_issued_at', 'client_secret_expires_at']:
+        client_secret = response.data['client_secret']
+        self.assertEqual(registration_data['redirect_uris'][0], response.data['redirect_uris'][0])
+        for required_property in [
+            'client_id', 'client_secret', 'client_id_issued_at', 'client_secret_expires_at',
+            'client_name', 'client_uri', 'logo_uri', 'tos_uri', 'policy_uri', 'software_id', 'software_version',
+            'redirect_uris'
+        ]:
             self.assertIn(required_property, response.data)
+
 
         # At this point the client would trigger the user's agent to make a GET request to the authorize UI endpooint
         # which would in turn make sure the user is authenticated and then trigger a post to the API to obtain a
@@ -104,6 +166,7 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         response = self.client.post(url, data=data)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['success_url'].startswith(registration_data['redirect_uris'][0]))
+        self.assertTrue('scope' in response.data['success_url'])
         url = parse.urlparse(response.data['success_url'])
         code = parse.parse_qs(url.query)['code'][0]
 
@@ -114,11 +177,16 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         data = {
             'grant_type': 'authorization_code',
             'code': code,
-            'client_id': client_id,
             'redirect_uri': registration_data['redirect_uris'][0],
             'scope': ' '.join(requested_scopes),
             'code_verifier': verifier
         }
+        basic_auth_header = 'Basic ' + base64.b64encode(
+            '{}:{}'.format(
+                parse.quote(client_id), parse.quote(client_secret)
+            ).encode('ascii')
+        ).decode('ascii')
+        self.client.credentials(HTTP_AUTHORIZATION=basic_auth_header)
         response = self.client.post('/o/token', data=data)
         if kwargs.get('pkce_fail') is True:
             self.assertEqual(response.status_code, 400)
@@ -162,8 +230,7 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
 
         with mock.patch('mainsite.blacklist.api_query_is_in_blacklist',
                         new=lambda a, b: False):
-            response = self.client.post('/bcv1/assertions', data={
-                'id': REMOTE_BADGE_URI}, format='json')
+            response = self.client.post('/bcv1/assertions', data={'assertion': {'id': REMOTE_BADGE_URI}}, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertJSONEqual(force_text(response.content), {
             "status": expected_status
@@ -201,7 +268,8 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
     def test_cannot_register_and_auth_badge_connect_app_if_pkce_verification_fails(self):
         self._perform_registration_and_authentication(pkce_fail=True)
 
-    def test_reject_duplicate_redirect_uris(self):
+    @responses.activate
+    def test_supply_default_scope(self):
         registration_data = {
             "client_name": "Badge Issuer",
             "client_uri": "https://issuer.example.com",
@@ -224,12 +292,60 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         }
         user = self.setup_user(email='test@example.com', authenticate=True)
 
+        self._register_mock_GET_response_for_logo_uri(registration_data['logo_uri'], self.get_test_image_path())
         response = self.client.post('/o/register', registration_data)
         self.assertTrue('client_id' in response.data)
 
-        registration_data['client_uri'] += '?foo'
-        response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "Redirect URI already registered")
+    @responses.activate
+    def register_and_process_logo_uri(self, test_image_path):
+        requested_scopes = [
+            "https://purl.imsglobal.org/spec/ob/v2p1/scope/assertion.readonly",
+            "https://purl.imsglobal.org/spec/ob/v2p1/scope/assertion.create",
+            "https://purl.imsglobal.org/spec/ob/v2p1/scope/profile.readonly",
+        ]
+        registration_data = {
+            "client_name": "Badge Issuer",
+            "client_uri": "https://issuer.example.com",
+            "logo_uri": "https://issuer.example.com/logo.png",
+            "tos_uri": "https://issuer.example.com/terms-of-service",
+            "policy_uri": "https://issuer.example.com/privacy-policy",
+            "software_id": "13dcdc83-fc0d-4c8d-9159-6461da297388",
+            "software_version": "54dfc83-fc0d-4c8d-9159-6461da297388",
+            "redirect_uris": [
+                "https://issuer.example.com/o/redirect"
+            ],
+            "token_endpoint_auth_method": "client_secret_basic",
+            "grant_types": [
+                "authorization_code",
+                "refresh_token"
+            ],
+            "response_types": [
+                "code"
+            ],
+            "scope": ' '.join(requested_scopes)
+        }
+
+        self._register_mock_GET_response_for_logo_uri(registration_data['logo_uri'], test_image_path)
+
+        return self.client.post('/o/register', registration_data)
+
+    def assert_logo_url_was_handled(self, response):
+        logo_url_storage_name = response.data['logo_uri'].split(getattr(settings, 'HTTP_ORIGIN')+"/media/")
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(default_storage.size(logo_url_storage_name[1]) > 0)
+
+    def test_registration_when_logo_uri_is_png(self):
+        self.assert_logo_url_was_handled(self.register_and_process_logo_uri(self.get_test_png_image_path()))
+
+    def test_registration_when_logo_uri_svg(self):
+        self.assert_logo_url_was_handled(self.register_and_process_logo_uri(self.get_test_svg_image_path()))
+
+    def test_registration_when_logo_uri_is_svg_hacked(self):
+        self.assert_logo_url_was_handled(self.register_and_process_logo_uri(self.get_hacked_svg_image_path()))
+
+    def test_registration_when_logo_uri_is_not_svg_or_png(self):
+        response = self.register_and_process_logo_uri(self.get_test_jpeg_image_path())
+        self.assertEqual(response.status_code, 400)
 
 
     def test_reject_different_domains(self):
@@ -256,23 +372,23 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         user = self.setup_user(email='test@example.com', authenticate=True)
 
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URIs do not match")
+        self.assertIn("do not match", response.data['error'])
         registration_data['redirect_uris'][0] = "https://issuer2.example.com/o/redirect"
         registration_data['logo_uri'] = "https://issuer2.example.com/logo.png"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URIs do not match")
+        self.assertIn("do not match", response.data['error'])
         registration_data['logo_uri'] = "https://issuer.example.com/logo.png"
         registration_data['tos_uri'] = "https://issuer2.example.com/terms-of-service"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URIs do not match")
+        self.assertIn("do not match", response.data['error'])
         registration_data['tos_uri'] = "https://issuer.example.com/terms-of-service"
         registration_data['policy_uri'] = "https://issuer2.example.com/privacy-policy"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URIs do not match")
+        self.assertIn("do not match", response.data['error'])
         registration_data['policy_uri'] = "https://issuer.example.com/privacy-policy"
         registration_data['client_uri'] = "https://issuer2.example.com"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URIs do not match")
+        self.assertIn("do not match", response.data['error'])
 
     def test_all_https_uris(self):
         registration_data = {
@@ -298,24 +414,25 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         user = self.setup_user(email='test@example.com', authenticate=True)
 
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URI schemes must be HTTPS")
+        self.assertEqual(response.data['error'], "redirect_uris: Must be a valid HTTPS URI")
         registration_data['redirect_uris'][0] = "https://issuer.example.com/o/redirect"
         registration_data['logo_uri'] = "http://issuer.example.com/logo.png"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URI schemes must be HTTPS")
+        self.assertEqual(response.data['error'], "logo_uri: Must be a valid HTTPS URI")
         registration_data['logo_uri'] = "https://issuer.example.com/logo.png"
         registration_data['tos_uri'] = "http://issuer.example.com/terms-of-service"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URI schemes must be HTTPS")
+        self.assertEqual(response.data['error'], "tos_uri: Must be a valid HTTPS URI")
         registration_data['tos_uri'] = "https://issuer.example.com/terms-of-service"
         registration_data['policy_uri'] = "http://issuer.example.com/privacy-policy"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URI schemes must be HTTPS")
+        self.assertEqual(response.data['error'], "policy_uri: Must be a valid HTTPS URI")
         registration_data['policy_uri'] = "https://issuer.example.com/privacy-policy"
         registration_data['client_uri'] = "http://issuer.example.com"
         response = self.client.post('/o/register', registration_data)
-        self.assertEqual(response.data['error'], "URI schemes must be HTTPS")
+        self.assertEqual(response.data['error'], "client_uri: Must be a valid HTTPS URI")
 
+    @responses.activate
     def test_no_refresh_token(self):
         requested_scopes = [
             "https://purl.imsglobal.org/spec/ob/v2p1/scope/assertion.readonly",
@@ -344,6 +461,8 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         }
 
         user = self.setup_user(email='test@example.com', authenticate=True)
+
+        self._register_mock_GET_response_for_logo_uri(registration_data['logo_uri'], self.get_test_image_path())
 
         response = self.client.post('/o/register', registration_data)
         client_id = response.data['client_id']
@@ -376,7 +495,6 @@ class BadgeConnectOAuthTests(BadgrTestCase, SetupIssuerHelper):
         self.assertTrue('refresh_token' not in token_data)
 
 
-
 class BadgeConnectAPITests(BadgrTestCase, SetupIssuerHelper):
 
     def test_unauthenticated_requests(self):
@@ -400,6 +518,27 @@ class BadgeConnectAPITests(BadgrTestCase, SetupIssuerHelper):
         self.assertEqual(response.status_code, 401)
         self.assertJSONEqual(force_text(response.content), expected_response)
 
+    @responses.activate
+    def test_submit_badges_with_intragraph_references(self):
+        setup_resources([
+            {'url': 'http://a.com/assertion-embedded1', 'filename': '2_0_assertion_embedded_badgeclass.json'},
+            {'url': OPENBADGES_CONTEXT_V2_URI, 'response_body': json.dumps(OPENBADGES_CONTEXT_V2_DICT)},
+            {'url': 'http://a.com/badgeclass_image', 'filename': "unbaked_image.png", 'mode': 'rb'},
+        ])
+        self.setup_user(email='test@example.com', authenticate=True)
+
+        assertion = {
+            "@context": 'https://w3id.org/openbadges/v2',
+            "id": 'http://a.com/assertion-embedded1',
+            "type": "Assertion",
+        }
+        post_input = {
+            'assertion': assertion
+        }
+        with mock.patch('mainsite.blacklist.api_query_is_in_blacklist',
+                        new=lambda a, b: False):
+            response = self.client.post('/bcv1/assertions', post_input, format='json')
+        self.assertEqual(response.status_code, 201)
 
     def test_assertions_pagination(self):
         self.user = self.setup_user(authenticate=True)

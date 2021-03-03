@@ -55,6 +55,7 @@ class BadgeConnectManifestSerializer(serializers.Serializer):
         data['@context'] = 'https://w3id.org/openbadges/badgeconnect/v1'
         return data
 
+
 class BadgeConnectStatusSerializer(serializers.Serializer):
     error = serializers.CharField(default=None)
     statusCode = serializers.IntegerField(default=200)
@@ -234,21 +235,24 @@ class BackpackImportResultSerializerBC(serializers.Serializer):
         })
 
 class BadgeConnectImportSerializer(serializers.Serializer):
-    id = serializers.URLField()  # This will only work for hosted assertions for now
+    assertion = serializers.DictField()
 
     class Meta:
         apispec_definition = ('BadgeConnectImport', {
             'properties': OrderedDict([
-                ('id', {
-                    'type': "string",
-                    'format': "url",
-                    'description': "URL of the Badge to import",
-                })
+                ('assertion', {
+                    'type': 'object',
+                    'properties': {
+                        'id': {
+                            'format': "url",
+                            'description': "URL of the Badge to import"
+                        }
+                }})
             ])
         })
 
     def create(self, validated_data):
-        url = validated_data['id']
+        url = validated_data['assertion']['id']
         try:
             instance, created = BadgeCheckHelper.get_or_create_assertion(url=url, created_by=self.context['request'].user)
             if not created:

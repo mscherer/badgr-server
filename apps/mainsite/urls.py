@@ -17,7 +17,7 @@ def django2_include(three_tuple_urlconf):
 from django.views.generic.base import RedirectView, TemplateView
 from oauth2_provider.urls import base_urlpatterns as oauth2_provider_base_urlpatterns
 
-from mainsite.views import SitewideActionFormView, LoginAndObtainAuthToken, RedirectToUiLogin, DocsAuthorizeRedirect
+from mainsite.views import SitewideActionFormView, RedirectToUiLogin, DocsAuthorizeRedirect
 from mainsite.views import info_view, email_unsubscribe, AppleAppSiteAssociation, error404, error500
 from pathway.api import PathwayList
 
@@ -37,7 +37,7 @@ urlpatterns = [
     url(r'^o/authorize/?$', AuthorizationApiView.as_view(), name='oauth2_api_authorize'),
     url(r'^o/token/?$', TokenView.as_view(), name='oauth2_provider_token'),
     url(r'^o/code/?$', AuthCodeExchange.as_view(), name='oauth2_code_exchange'),
-    url(r'^o/register/?$', RegisterApiView.as_view(), name='oauth2_api_register'),
+    url(r'^o/register/?$', RegisterApiView.as_view(), kwargs={'version': 'rfc7591'}, name='oauth2_api_register'),
     path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
 
     # Badge Connect URLs
@@ -75,9 +75,6 @@ urlpatterns = [
 
     # legacy share redirects
     url(r'', include('backpack.share_urls')),
-
-    # REST Framework
-    url(r'^api-auth/token$', LoginAndObtainAuthToken.as_view()),
 
     # Social Auth (oAuth2 and SAML)
     url(r'^account/', include('badgrsocialauth.urls')),

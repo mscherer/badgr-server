@@ -11,6 +11,7 @@ from itertools import chain
 import cachemodel
 import os
 from allauth.account.adapter import get_adapter
+from cachemodel import CACHE_FOREVER_TIMEOUT
 from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,6 +26,7 @@ from json import dumps as json_dumps
 from jsonfield import JSONField
 from openbadges_bakery import bake
 from django.utils import timezone
+from django.core.cache import cache
 
 import badgrlog
 from entity.models import BaseVersionedEntity
@@ -34,6 +36,7 @@ from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploade
 from mainsite.models import BadgrApp, EmailBlacklist
 from mainsite import blacklist
 from mainsite.utils import OriginSetting, generate_entity_uri
+
 from .utils import (add_obi_version_ifneeded, CURRENT_OBI_VERSION, generate_rebaked_filename,
                     generate_sha256_hashstring, get_obi_context, parse_original_datetime, UNVERSIONED_BAKED_VERSION)
 
@@ -210,7 +213,7 @@ class Issuer(ResizeUploadedImage,
         self._state.fields_cache = fields_cache  # restore the fields cache
 
     def delete(self, *args, **kwargs):
-        if self.recipient_count > 0:
+        if self.has_nonrevoked_assertions():
             raise ProtectedError("Issuer can not be deleted because it has previously issued badges.", self)
 
         # remove any unused badgeclasses owned by issuer
@@ -324,10 +327,6 @@ class Issuer(ResizeUploadedImage,
         return self.recipientgroup_set.all()
 
     @property
-    def recipient_count(self):
-        return sum(bc.recipient_count() for bc in self.cached_badgeclasses())
-
-    @property
     def image_preview(self):
         return self.image
 
@@ -387,6 +386,8 @@ class Issuer(ResizeUploadedImage,
         id = self.badgrapp_id if self.badgrapp_id else None
         return BadgrApp.objects.get_by_id_or_default(badgrapp_id=id)
 
+    def has_nonrevoked_assertions(self):
+        return self.badgeinstance_set.filter(revoked=False).exists()
 
 
 class IssuerStaff(cachemodel.CacheModel):
@@ -428,10 +429,11 @@ class IssuerStaff(cachemodel.CacheModel):
     def cached_issuer(self):
         return Issuer.cached.get(pk=self.issuer_id)
 
+
 def get_user_or_none(recipient_id, recipient_type):
     from badgeuser.models import UserRecipientIdentifier, CachedEmailAddress
     user = None
-    if recipient_type=='email':
+    if recipient_type == 'email':
         verified_email = CachedEmailAddress.objects.filter(verified=True, email=recipient_id).first()
         if verified_email:
             user = verified_email.user
@@ -500,9 +502,9 @@ class BadgeClass(ResizeUploadedImage,
         self._state.fields_cache = fields_cache  # restore the fields cache
 
     def delete(self, *args, **kwargs):
-        # if there are some assertions and some have not expired
-        if self.recipient_count() > 0 and self.badgeinstances.filter(revoked=False).filter(
-                models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())).count() > 0:
+        # if there are some assertions that have not expired
+        if self.badgeinstances.filter(revoked=False).filter(
+                models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())).exists():
             raise ProtectedError("BadgeClass may only be deleted if all BadgeInstances have been revoked.", self)
 
         if self.pathway_element_count() > 0:
@@ -559,9 +561,8 @@ class BadgeClass(ResizeUploadedImage,
     def cached_issuer(self):
         return Issuer.cached.get(pk=self.issuer_id)
 
-    @cachemodel.cached_method(auto_publish=True)
-    def recipient_count(self):
-        return self.badgeinstances.filter(revoked=False).count()
+    def has_nonrevoked_assertions(self):
+        return self.badgeinstances.filter(revoked=False).exists()
 
     def pathway_element_count(self):
         return len(self.cached_pathway_elements())
@@ -952,6 +953,7 @@ class BadgeInstance(BaseAuditedModel,
 
     def delete(self, *args, **kwargs):
         badgeclass = self.badgeclass
+
         recipient_profile = self.cached_recipient_profile
         super(BadgeInstance, self).delete(*args, **kwargs)
         badgeclass.publish()
@@ -1030,7 +1032,7 @@ class BadgeInstance(BaseAuditedModel,
             from badgeuser.models import CachedEmailAddress
             CachedEmailAddress.objects.get(email=self.recipient_identifier, verified=True)
             template_name = 'issuer/email/notify_account_holder'
-            email_context['site_url'] = badgr_app.email_confirmation_redirect
+            email_context['site_url'] = badgr_app.ui_login_redirect
         except CachedEmailAddress.DoesNotExist:
             pass
 
