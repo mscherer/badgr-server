@@ -23,6 +23,7 @@ from django.db import models, transaction
 from django.db.models import ProtectedError
 from json import loads as json_loads
 from json import dumps as json_dumps
+
 from jsonfield import JSONField
 from openbadges_bakery import bake
 from django.utils import timezone
@@ -32,7 +33,7 @@ import badgrlog
 from entity.models import BaseVersionedEntity
 from issuer.managers import BadgeInstanceManager, IssuerManager, BadgeClassManager, BadgeInstanceEvidenceManager
 from mainsite.managers import SlugOrJsonIdCacheModelManager
-from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage
+from mainsite.mixins import HashUploadedImage, ResizeUploadedImage, ScrubUploadedSvgImage, PngImagePreview
 from mainsite.models import BadgrApp, EmailBlacklist
 from mainsite import blacklist
 from mainsite.utils import OriginSetting, generate_entity_uri
@@ -176,6 +177,7 @@ class BaseOpenBadgeExtension(cachemodel.CacheModel):
 
 class Issuer(ResizeUploadedImage,
              ScrubUploadedSvgImage,
+             PngImagePreview,
              BaseAuditedModel,
              BaseVersionedEntity,
              BaseOpenBadgeObjectModel):
@@ -186,13 +188,14 @@ class Issuer(ResizeUploadedImage,
     staff = models.ManyToManyField(AUTH_USER_MODEL, through='IssuerStaff')
 
     # slug has been deprecated for now, but preserve existing values
-    slug = models.CharField(max_length=255, blank=True, null=True, default=None)
+    slug = models.CharField(max_length=255, db_index=True, blank=True, null=True, default=None)
     #slug = AutoSlugField(max_length=255, populate_from='name', unique=True, blank=False, editable=True)
 
     badgrapp = models.ForeignKey('mainsite.BadgrApp', blank=True, null=True, default=None, on_delete=models.SET_NULL)
 
     name = models.CharField(max_length=1024)
     image = models.FileField(upload_to='uploads/issuers', blank=True, null=True)
+    image_preview = models.FileField(upload_to='uploads/issuers', blank=True, null=True)
     description = models.TextField(blank=True, null=True, default=None)
     url = models.CharField(max_length=254, blank=True, null=True, default=None)
     email = models.CharField(max_length=254, blank=True, null=True, default=None)
@@ -211,6 +214,9 @@ class Issuer(ResizeUploadedImage,
                 member.cached_user.publish()
 
         self._state.fields_cache = fields_cache  # restore the fields cache
+
+    def has_nonrevoked_assertions(self):
+        return self.badgeinstance_set.filter(revoked=False).exists()
 
     def delete(self, *args, **kwargs):
         if self.has_nonrevoked_assertions():
@@ -318,14 +324,6 @@ class Issuer(ResizeUploadedImage,
     def cached_badgeclasses(self):
         return self.badgeclasses.all().order_by("created_at")
 
-    @cachemodel.cached_method(auto_publish=True)
-    def cached_pathways(self):
-        return self.pathway_set.filter(is_active=True)
-
-    @cachemodel.cached_method(auto_publish=True)
-    def cached_recipient_groups(self):
-        return self.recipientgroup_set.all()
-
     @property
     def image_preview(self):
         return self.image
@@ -389,7 +387,6 @@ class Issuer(ResizeUploadedImage,
     def has_nonrevoked_assertions(self):
         return self.badgeinstance_set.filter(revoked=False).exists()
 
-
 class IssuerStaff(cachemodel.CacheModel):
     ROLE_OWNER = 'owner'
     ROLE_EDITOR = 'editor'
@@ -449,6 +446,7 @@ def get_user_or_none(recipient_id, recipient_type):
 class BadgeClass(ResizeUploadedImage,
                  ScrubUploadedSvgImage,
                  HashUploadedImage,
+                 PngImagePreview,
                  BaseAuditedModel,
                  BaseVersionedEntity,
                  BaseOpenBadgeObjectModel):
@@ -470,11 +468,12 @@ class BadgeClass(ResizeUploadedImage,
     issuer = models.ForeignKey(Issuer, blank=False, null=False, on_delete=models.CASCADE, related_name="badgeclasses")
 
     # slug has been deprecated for now, but preserve existing values
-    slug = models.CharField(max_length=255, blank=True, null=True, default=None)
+    slug = models.CharField(max_length=255, db_index=True, blank=True, null=True, default=None)
     #slug = AutoSlugField(max_length=255, populate_from='name', unique=True, blank=False, editable=True)
 
     name = models.CharField(max_length=255)
     image = models.FileField(upload_to='uploads/badges', blank=True)
+    image_preview = models.FileField(upload_to='uploads/badges', blank=True, null=True)
     description = models.TextField(blank=True, null=True, default=None)
 
     criteria_url = models.CharField(max_length=254, blank=True, null=True, default=None)
@@ -506,12 +505,6 @@ class BadgeClass(ResizeUploadedImage,
         if self.badgeinstances.filter(revoked=False).filter(
                 models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=timezone.now())).exists():
             raise ProtectedError("BadgeClass may only be deleted if all BadgeInstances have been revoked.", self)
-
-        if self.pathway_element_count() > 0:
-            raise ProtectedError("BadgeClass may only be deleted if all PathwayElementBadge have been removed.", self)
-
-        if len(self.cached_completion_elements()) > 0:
-            raise ProtectedError("Badge could not be deleted. It is being used as a pathway completion badge.", self)
 
         issuer = self.issuer
         super(BadgeClass, self).delete(*args, **kwargs)
@@ -564,8 +557,12 @@ class BadgeClass(ResizeUploadedImage,
     def has_nonrevoked_assertions(self):
         return self.badgeinstances.filter(revoked=False).exists()
 
-    def pathway_element_count(self):
-        return len(self.cached_pathway_elements())
+    """
+    Included for legacy purposes. It is inefficient to routinely call this for badge classes with large numbers of assertions.
+    """
+    @property
+    def v1_api_recipient_count(self):
+        return self.badgeinstances.filter(revoked=False).count()
 
     @cachemodel.cached_method(auto_publish=True)
     def cached_alignments(self):
@@ -638,14 +635,6 @@ class BadgeClass(ResizeUploadedImage,
 
     def get_extensions_manager(self):
         return self.badgeclassextension_set
-
-    @cachemodel.cached_method(auto_publish=True)
-    def cached_pathway_elements(self):
-        return [peb.element for peb in self.pathwayelementbadge_set.all()]
-
-    @cachemodel.cached_method(auto_publish=True)
-    def cached_completion_elements(self):
-        return [pce for pce in self.completion_elements.all()]
 
     def issue(self, recipient_id=None, evidence=None, narrative=None, notify=False, created_by=None, allow_uppercase=False, badgr_app=None, recipient_type=RECIPIENT_TYPE_EMAIL, **kwargs):
         return BadgeInstance.objects.create(
@@ -768,7 +757,7 @@ class BadgeInstance(BaseAuditedModel,
     image = models.FileField(upload_to='uploads/badges', blank=True)
 
     # slug has been deprecated for now, but preserve existing values
-    slug = models.CharField(max_length=255, blank=True, null=True, default=None)
+    slug = models.CharField(max_length=255, db_index=True, blank=True, null=True, default=None)
     #slug = AutoSlugField(max_length=255, populate_from='get_new_slug', unique=True, blank=False, editable=False)
 
     revoked = models.BooleanField(default=False, db_index=True)
@@ -939,8 +928,6 @@ class BadgeInstance(BaseAuditedModel,
 
         super(BadgeInstance, self).publish()
         self.badgeclass.publish()
-        if self.cached_recipient_profile:
-            self.cached_recipient_profile.publish()
         if self.recipient_user:
             self.recipient_user.publish()
 
@@ -954,11 +941,8 @@ class BadgeInstance(BaseAuditedModel,
     def delete(self, *args, **kwargs):
         badgeclass = self.badgeclass
 
-        recipient_profile = self.cached_recipient_profile
         super(BadgeInstance, self).delete(*args, **kwargs)
         badgeclass.publish()
-        if recipient_profile:
-            recipient_profile.publish()
         if self.recipient_user:
             self.recipient_user.publish()
         self.publish_delete('entity_id', 'revoked')
@@ -1013,7 +997,7 @@ class BadgeInstance(BaseAuditedModel,
                 'issuer_detail': self.issuer.public_url,
                 'issuer_image_url': issuer_image_url,
                 'badge_instance_url': self.public_url,
-                'image_url': self.public_url + '/image',
+                'image_url': self.public_url + '/image?type=png',
                 'download_url': self.public_url + "?action=download",
                 'site_name': badgr_app.name,
                 'site_url': badgr_app.signup_redirect,
@@ -1041,16 +1025,6 @@ class BadgeInstance(BaseAuditedModel,
 
     def get_extensions_manager(self):
         return self.badgeinstanceextension_set
-
-    @property
-    def cached_recipient_profile(self):
-        from recipient.models import RecipientProfile
-        try:
-            return RecipientProfile.cached.get(recipient_identifier=self.recipient_identifier)
-        except RecipientProfile.MultipleObjectsReturned:
-            return RecipientProfile.objects.filter(recipient_identifier=self.recipient_identifier).first()
-        except RecipientProfile.DoesNotExist:
-            return None
 
     @property
     def recipient_user(self):

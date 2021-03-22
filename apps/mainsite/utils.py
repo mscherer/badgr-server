@@ -113,6 +113,8 @@ def verify_svg(fileobj):
             break
     except ET.ParseError:
         pass
+    finally:
+        fileobj.seek(0)
     return tag == '{http://www.w3.org/2000/svg}svg'
 
 
@@ -408,3 +410,36 @@ def hash_for_image(imageFileField):
         return file_hash.hexdigest()
     except:
         return ''
+
+
+def convert_svg_to_png(svg_string, height, width):
+    """
+    Converts an SVG string into a PNG image via a conversion API
+    :param svg_string: An SVG
+    :param height: PNG height
+    :param width: PNG width
+    :return: BytesIO of PNG bytes or False
+    """
+    if getattr(settings, 'SVG_HTTP_CONVERSION_ENABLED', False) is False:
+        return False
+
+    endpoint = getattr(settings, 'SVG_HTTP_CONVERSION_ENDPOINT')
+    if not endpoint:
+        return False
+
+    response = requests.post(endpoint, json=dict(
+        svgString=svg_string,
+        height=height,
+        width=width
+    ))
+    if response.status_code != 200:
+        return False
+    try:
+        result = response.json()
+        if 'body' not in result or result['statusCode'] != 200:
+            return False
+        b64png = result['body'].replace('data:image/png;base64,', '')
+        return io.BytesIO(base64.b64decode(b64png))
+    except ValueError:
+        # Issuing decoding response JSON
+        return False

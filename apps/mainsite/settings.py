@@ -48,8 +48,6 @@ INSTALLED_APPS = [
     'entity',
     'issuer',
     'backpack',
-    'pathway',
-    'recipient',
     'externaltools',
 
     # api docs
@@ -495,3 +493,8 @@ AUTHCODE_EXPIRES_SECONDS = 600  # needs to be long enough to fetch information f
 SAML_EMAIL_KEYS = ['Email', 'email', 'mail', 'emailaddress', 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress']
 SAML_FIRST_NAME_KEYS = ['FirstName', 'givenName', 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname']
 SAML_LAST_NAME_KEYS = ['LastName', 'sn', 'surname', 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname']
+
+# SVG to PNG Image Preview Generation Settings
+# You may use an HTTP service to convert SVG images to PNG for higher reliability than the built-in Python option.
+SVG_HTTP_CONVERSION_ENABLED = False
+SVG_HTTP_CONVERSION_ENDPOINT = ''  # Include scheme, e.g. 'http://example.com/convert-to-png'
