@@ -90,6 +90,7 @@ class AssertionsChangedSinceTests(SetupIssuerHelper, BadgrTestCase):
         response = self.client.get(url)
         self.assertEqual(len(response.data['result']), 0)
 
+
     def test_application_can_fetch_changed_assertions(self):
         #as per update in BP-2347, this token should not be able to get anything anymore
         staff = self.setup_user(email='staff@example.com')
@@ -129,7 +130,7 @@ class AssertionsChangedSinceTests(SetupIssuerHelper, BadgrTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
-    def assertions_in_expected_order_through_pagination(self):
+    def test_assertions_in_expected_order_through_pagination(self):
         staff = self.setup_user(email='staff@example.com', token_scope='r:issuer')
         recipient = self.setup_user(email='recipient@example.com', authenticate=False)
         issuer = self.setup_issuer(owner=staff)

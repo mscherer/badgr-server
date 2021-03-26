@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 from hashlib import sha256
 import mock
@@ -8,6 +9,7 @@ import pytz
 import re
 import responses
 import shutil
+import time
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
 import warnings
@@ -31,7 +33,7 @@ from mainsite import TOP_DIR, blacklist
 from mainsite.serializers import DateTimeWithUtcZAtEndField
 from mainsite.tests import SetupIssuerHelper
 from mainsite.tests.base import BadgrTestCase
-from mainsite.utils import fetch_remote_file_to_storage, verify_svg
+from mainsite.utils import fetch_remote_file_to_storage, verify_svg, get_database_timestamp_as_datetime
 
 
 class TestDateSerialization(BadgrTestCase):
@@ -129,6 +131,9 @@ class TestUtils(BadgrTestCase, SetupIssuerHelper):
         with open(self.get_test_svg_image_path(), 'rb') as svg_badge_image:
             self.assertTrue(verify_svg(svg_badge_image))
 
+    def test_get_database_timestamp_as_datetime(self):
+        result = get_database_timestamp_as_datetime()
+        self.assertIsInstance(result, datetime.datetime)
 
 @override_settings(
     HTTP_ORIGIN='http://api.testserver',

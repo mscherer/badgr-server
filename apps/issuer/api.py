@@ -31,6 +31,7 @@ from apispec_drf.decorators import apispec_get_operation, apispec_put_operation,
 from mainsite.permissions import AuthenticatedWithVerifiedIdentifier, IsServerAdmin
 from mainsite.serializers import CursorPaginatedListSerializer
 from mainsite.models import AccessTokenProxy
+from mainsite.utils import get_database_timestamp_as_datetime
 
 logger = badgrlog.BadgrLogger()
 
@@ -685,7 +686,8 @@ class PaginatedAssertionsSinceSerializer(CursorPaginatedListSerializer):
     child = BadgeInstanceSerializerV2()
 
     def __init__(self, *args, **kwargs):
-        self.timestamp = timezone.now()  # take timestamp now before SQL query is run in super.__init__
+        # take timestamp now before SQL query is run in super.__init__
+        self.timestamp = get_database_timestamp_as_datetime()
         super(PaginatedAssertionsSinceSerializer, self).__init__(*args, **kwargs)
 
     def to_representation(self, data):
@@ -739,7 +741,8 @@ class PaginatedBadgeClassesSinceSerializer(CursorPaginatedListSerializer):
     child = BadgeClassSerializerV2()
 
     def __init__(self, *args, **kwargs):
-        self.timestamp = timezone.now()  # take timestamp now before SQL query is run in super.__init__
+        # take timestamp now before SQL query is run in super.__init__
+        self.timestamp = get_database_timestamp_as_datetime()
         super(PaginatedBadgeClassesSinceSerializer, self).__init__(*args, **kwargs)
 
     def to_representation(self, data):
@@ -791,7 +794,8 @@ class PaginatedIssuersSinceSerializer(CursorPaginatedListSerializer):
     child = IssuerSerializerV2()
 
     def __init__(self, *args, **kwargs):
-        self.timestamp = timezone.now()  # take timestamp now before SQL query is run in super.__init__
+        # take timestamp now before SQL query is run in super.__init__
+        self.timestamp = get_database_timestamp_as_datetime()
         super(PaginatedIssuersSinceSerializer, self).__init__(*args, **kwargs)
 
     def to_representation(self, data):

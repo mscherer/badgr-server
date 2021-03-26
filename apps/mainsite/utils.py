@@ -7,9 +7,13 @@ import base64
 import datetime
 import hashlib
 import json
+import time
+
 import puremagic
 import math
 import re
+
+import pytz
 import requests
 import urllib.request, urllib.parse, urllib.error
 import urllib.parse
@@ -18,15 +22,16 @@ import uuid
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import SuspiciousFileOperation
+from django.core.exceptions import SuspiciousFileOperation, ImproperlyConfigured
 from django.core.files.storage import DefaultStorage
+from django.db import connection, DatabaseError
 from django.urls import get_callable
 from django.http import HttpResponse
 from django.utils import timezone
 
 from PIL import Image
 
-from rest_framework.status import HTTP_429_TOO_MANY_REQUESTS
+from rest_framework.status import HTTP_429_TOO_MANY_REQUESTS, HTTP_503_SERVICE_UNAVAILABLE
 
 from xml.etree import cElementTree as ET
 
@@ -173,6 +178,29 @@ def fit_image_to_height(img, aspect_ratio, height=400):
     new_img.paste(resized_img, (_fit_dimension(new_size[0], height), _fit_dimension(new_size[1], height)))
 
     return new_img
+
+
+def get_database_timestamp_as_datetime():
+    db_whitelist = ['django.db.backends.mysql',
+                    'sql_server.pyodbc']
+    try:
+        db = settings.DATABASES['default'].get('ENGINE', '')
+        if db in db_whitelist:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT NOW(4)")
+                response = cursor.fetchone()
+                if response[0] and isinstance(response[0], datetime.datetime):
+                    timestamp_as_datetime = response[0]
+                    if timezone.is_aware(timestamp_as_datetime):
+                        return timestamp_as_datetime
+                    else:
+                        return timezone.make_aware(timestamp_as_datetime, pytz.utc)
+                else:
+                    raise DatabaseError('Unable to retrieve datetime from database.')
+        else:
+            return timezone.now()
+    except (DatabaseError, IndexError, ValueError):
+        raise DatabaseError('Unable to retrieve datetime from database.')
 
 
 def fetch_remote_file_to_storage(remote_url,
