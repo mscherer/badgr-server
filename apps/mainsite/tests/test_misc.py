@@ -134,6 +134,7 @@ class TestUtils(BadgrTestCase, SetupIssuerHelper):
     def test_get_database_timestamp_as_datetime(self):
         result = get_database_timestamp_as_datetime()
         self.assertIsInstance(result, datetime.datetime)
+        self.assertTrue(timezone.is_aware(result))
 
 @override_settings(
     HTTP_ORIGIN='http://api.testserver',
