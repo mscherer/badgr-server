@@ -182,7 +182,7 @@ def fit_image_to_height(img, aspect_ratio, height=400):
 
 def get_database_timestamp_as_datetime():
     query_by_database = {
-        'django.db.backends.mysql': 'SELECT NOW(4)',
+        'django.db.backends.mysql': 'SELECT NOW(6)',
         'sql_server.pyodbc': 'SELECT SYSUTCDATETIME()'
     }
 
