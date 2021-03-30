@@ -181,13 +181,16 @@ def fit_image_to_height(img, aspect_ratio, height=400):
 
 
 def get_database_timestamp_as_datetime():
-    db_whitelist = ['django.db.backends.mysql',
-                    'sql_server.pyodbc']
+    query_by_database = {
+        'django.db.backends.mysql': 'SELECT NOW(4)',
+        'sql_server.pyodbc': 'SELECT SYSUTCDATETIME()'
+    }
+
     try:
         db = settings.DATABASES['default'].get('ENGINE', '')
-        if db in db_whitelist:
+        if db in query_by_database:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT NOW(4)")
+                cursor.execute(query_by_database[db])
                 response = cursor.fetchone()
                 if response[0] and isinstance(response[0], datetime.datetime):
                     timestamp_as_datetime = response[0]
@@ -199,8 +202,8 @@ def get_database_timestamp_as_datetime():
                     raise DatabaseError('Unable to retrieve datetime from database.')
         else:
             return timezone.now()
-    except (DatabaseError, IndexError, ValueError):
-        raise DatabaseError('Unable to retrieve datetime from database.')
+    except (DatabaseError, IndexError, ValueError) as e:
+        raise DatabaseError('An error occurred while attempting get a database timestamp. {}'.format(str(e)))
 
 
 def fetch_remote_file_to_storage(remote_url,
