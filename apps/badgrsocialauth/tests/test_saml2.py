@@ -115,6 +115,180 @@ class SAML2Tests(BadgrTestCase):
             self.assertIsNot(
                 response.content.find(b'<input type="hidden" name="SAMLRequest" value="'), -1)
 
+    def test_egcc_response_500(self):
+        from saml2 import entity
+
+        idp_url = "https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/"
+        idp_name = "saml2.egcc"
+        metadata = '''<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" ID="_f0dfbb62-6de1-48ea-b8ce-fb95e7383560" entityID="https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/">
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+<SignedInfo>
+<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+<Reference URI="#_f0dfbb62-6de1-48ea-b8ce-fb95e7383560">
+<Transforms>
+<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+</Transforms>
+<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+<DigestValue>x7a34VS3i8BhaYrlEUMaq4Mt//Q04rbDd/ENT07p9YM=</DigestValue>
+</Reference>
+</SignedInfo>
+<SignatureValue>UEGV84D+KFqv5L8e69hU7KW0mkesrcYbe1Ql4asa9N+1a3hM3BRnP3NWVe03TKblQMD9ENlcdEBreB7gqYrq3XWeaBlzWRUUX9Wanw8LItoT7bgC4zX50m+wZ844oFYBTs7bxtfS4yecThsiPMS1Fy8CtnT6MFjm5jA+WiyPGYUjf+fGfLyCuYfgl5rOvjZbzbaePvtDvKVSjc97HcUidAOyEzdnC0O2w3/kjLF8bL+wBLhSsvoRozxw1TfF/aCg+k0U3c6HkaPAOHFjXjwR8fFRA5B+kKLiZmVzH07Gu9ScE/NWLKL1z3VKbctxZb9WK4BnV6kz7yvMIuFN5K5qbQ==</SignatureValue>
+<KeyInfo>
+<X509Data>
+<X509Certificate>MIIC8DCCAdigAwIBAgIQO06HXURtw6dDNl8QBHJMGjANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yMTAzMTIyMDAxNDNaFw0yNDAzMTIxOTAxNDNaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquKiGHHJ428Y1iqQxRi2YHBfGhUhclQhJRn3phS4Z4+3Y2UIv8h2LSDu3QVL9k44EBfGMIWp6HkgHeLya62OVmDhqH2/9udUKfhVxaYKu7Ak1/WzMr8TgUEm98RAL7ZFSM9xZ2p6fT2hD4gHLdCAkBBy6dnzIjM9vLYP82PiHsAGqkeTTHDZhGDWLvWdoMrrMkNkzDObwJzw2IlfkrHvZuimHyJbLhuAlIORa9dvQj8DM9hWLxP6HyJxtJ0mZYFLsLEfqiOMZN5/aUdFuQUIJQwMwqlvACkBLf/2GflEvSWj6gc1wlXhZdZqvshHrZl1qIDkLmsgr9gimUuP9XpJwQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBZ8YeaYeV7WHrPf+1Mcl3Rmt0n4x0+xiA+vdjB5q3gCXDhQgNl8CabwATpY/5ze6cwKeM4MIlgOwZTu86JKKc2nqDAiyF/gtbETGiTE2ucfQjyZyoCr6WSRj1vquoNSockzimEfiwMtnYvUAic/aEklljHz2m7TR6s938E1neE7lVU5Ig5IIvvE/3JbLgIM+CbgTHvZF7SfLAgdpMBPp9+nE6crsbQTYqi5exYeevZ5cwn5v6j1QIJh+s6f5+8IKuPfIxmJj2VDtm5TAo8JZSSr12hGK4VOaw3M/gbnJtxQQFvJfEtLwpgjo1fVqLK1wxchFHEE5HyYQUGogpPOV02</X509Certificate>
+</X509Data>
+</KeyInfo>
+</Signature>
+<RoleDescriptor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:fed="http://docs.oasis-open.org/wsfed/federation/200706" xsi:type="fed:SecurityTokenServiceType" protocolSupportEnumeration="http://docs.oasis-open.org/wsfed/federation/200706">
+<KeyDescriptor use="signing">
+<KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+<X509Data>
+<X509Certificate>MIIC8DCCAdigAwIBAgIQO06HXURtw6dDNl8QBHJMGjANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yMTAzMTIyMDAxNDNaFw0yNDAzMTIxOTAxNDNaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquKiGHHJ428Y1iqQxRi2YHBfGhUhclQhJRn3phS4Z4+3Y2UIv8h2LSDu3QVL9k44EBfGMIWp6HkgHeLya62OVmDhqH2/9udUKfhVxaYKu7Ak1/WzMr8TgUEm98RAL7ZFSM9xZ2p6fT2hD4gHLdCAkBBy6dnzIjM9vLYP82PiHsAGqkeTTHDZhGDWLvWdoMrrMkNkzDObwJzw2IlfkrHvZuimHyJbLhuAlIORa9dvQj8DM9hWLxP6HyJxtJ0mZYFLsLEfqiOMZN5/aUdFuQUIJQwMwqlvACkBLf/2GflEvSWj6gc1wlXhZdZqvshHrZl1qIDkLmsgr9gimUuP9XpJwQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBZ8YeaYeV7WHrPf+1Mcl3Rmt0n4x0+xiA+vdjB5q3gCXDhQgNl8CabwATpY/5ze6cwKeM4MIlgOwZTu86JKKc2nqDAiyF/gtbETGiTE2ucfQjyZyoCr6WSRj1vquoNSockzimEfiwMtnYvUAic/aEklljHz2m7TR6s938E1neE7lVU5Ig5IIvvE/3JbLgIM+CbgTHvZF7SfLAgdpMBPp9+nE6crsbQTYqi5exYeevZ5cwn5v6j1QIJh+s6f5+8IKuPfIxmJj2VDtm5TAo8JZSSr12hGK4VOaw3M/gbnJtxQQFvJfEtLwpgjo1fVqLK1wxchFHEE5HyYQUGogpPOV02</X509Certificate>
+</X509Data>
+</KeyInfo>
+</KeyDescriptor>
+<fed:ClaimTypesOffered>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name">
+<auth:DisplayName>Name</auth:DisplayName>
+<auth:Description>The mutable display name of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier">
+<auth:DisplayName>Subject</auth:DisplayName>
+<auth:Description>An immutable, globally unique, non-reusable identifier of the user that is unique to the application for which a token is issued.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname">
+<auth:DisplayName>Given Name</auth:DisplayName>
+<auth:Description>First name of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname">
+<auth:DisplayName>Surname</auth:DisplayName>
+<auth:Description>Last name of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/displayname">
+<auth:DisplayName>Display Name</auth:DisplayName>
+<auth:Description>Display name of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/nickname">
+<auth:DisplayName>Nick Name</auth:DisplayName>
+<auth:Description>Nick name of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/authenticationinstant">
+<auth:DisplayName>Authentication Instant</auth:DisplayName>
+<auth:Description>The time (UTC) when the user is authenticated to Windows Azure Active Directory.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/authenticationmethod">
+<auth:DisplayName>Authentication Method</auth:DisplayName>
+<auth:Description>The method that Windows Azure Active Directory uses to authenticate users.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/objectidentifier">
+<auth:DisplayName>ObjectIdentifier</auth:DisplayName>
+<auth:Description>Primary identifier for the user in the directory. Immutable, globally unique, non-reusable.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/tenantid">
+<auth:DisplayName>TenantId</auth:DisplayName>
+<auth:Description>Identifier for the user's tenant.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/identityprovider">
+<auth:DisplayName>IdentityProvider</auth:DisplayName>
+<auth:Description>Identity provider for the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress">
+<auth:DisplayName>Email</auth:DisplayName>
+<auth:Description>Email address of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/groups">
+<auth:DisplayName>Groups</auth:DisplayName>
+<auth:Description>Groups of the user.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/accesstoken">
+<auth:DisplayName>External Access Token</auth:DisplayName>
+<auth:Description>Access token issued by external identity provider.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/expiration">
+<auth:DisplayName>External Access Token Expiration</auth:DisplayName>
+<auth:Description>UTC expiration time of access token issued by external identity provider.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/identity/claims/openid2_id">
+<auth:DisplayName>External OpenID 2.0 Identifier</auth:DisplayName>
+<auth:Description>OpenID 2.0 identifier issued by external identity provider.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/claims/groups.link">
+<auth:DisplayName>GroupsOverageClaim</auth:DisplayName>
+<auth:Description>Issued when number of user's group claims exceeds return limit.</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/role">
+<auth:DisplayName>Role Claim</auth:DisplayName>
+<auth:Description>Roles that the user or Service Principal is attached to</auth:Description>
+</auth:ClaimType>
+<auth:ClaimType xmlns:auth="http://docs.oasis-open.org/wsfed/authorization/200706" Uri="http://schemas.microsoft.com/ws/2008/06/identity/claims/wids">
+<auth:DisplayName>RoleTemplate Id Claim</auth:DisplayName>
+<auth:Description>Role template id of the Built-in Directory Roles that the user is a member of</auth:Description>
+</auth:ClaimType>
+</fed:ClaimTypesOffered>
+<fed:SecurityTokenServiceEndpoint>
+<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">
+<wsa:Address>https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/wsfed</wsa:Address>
+</wsa:EndpointReference>
+</fed:SecurityTokenServiceEndpoint>
+<fed:PassiveRequestorEndpoint>
+<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">
+<wsa:Address>https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/wsfed</wsa:Address>
+</wsa:EndpointReference>
+</fed:PassiveRequestorEndpoint>
+</RoleDescriptor>
+<RoleDescriptor xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:fed="http://docs.oasis-open.org/wsfed/federation/200706" xsi:type="fed:ApplicationServiceType" protocolSupportEnumeration="http://docs.oasis-open.org/wsfed/federation/200706">
+<KeyDescriptor use="signing">
+<KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+<X509Data>
+<X509Certificate>MIIC8DCCAdigAwIBAgIQO06HXURtw6dDNl8QBHJMGjANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yMTAzMTIyMDAxNDNaFw0yNDAzMTIxOTAxNDNaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquKiGHHJ428Y1iqQxRi2YHBfGhUhclQhJRn3phS4Z4+3Y2UIv8h2LSDu3QVL9k44EBfGMIWp6HkgHeLya62OVmDhqH2/9udUKfhVxaYKu7Ak1/WzMr8TgUEm98RAL7ZFSM9xZ2p6fT2hD4gHLdCAkBBy6dnzIjM9vLYP82PiHsAGqkeTTHDZhGDWLvWdoMrrMkNkzDObwJzw2IlfkrHvZuimHyJbLhuAlIORa9dvQj8DM9hWLxP6HyJxtJ0mZYFLsLEfqiOMZN5/aUdFuQUIJQwMwqlvACkBLf/2GflEvSWj6gc1wlXhZdZqvshHrZl1qIDkLmsgr9gimUuP9XpJwQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBZ8YeaYeV7WHrPf+1Mcl3Rmt0n4x0+xiA+vdjB5q3gCXDhQgNl8CabwATpY/5ze6cwKeM4MIlgOwZTu86JKKc2nqDAiyF/gtbETGiTE2ucfQjyZyoCr6WSRj1vquoNSockzimEfiwMtnYvUAic/aEklljHz2m7TR6s938E1neE7lVU5Ig5IIvvE/3JbLgIM+CbgTHvZF7SfLAgdpMBPp9+nE6crsbQTYqi5exYeevZ5cwn5v6j1QIJh+s6f5+8IKuPfIxmJj2VDtm5TAo8JZSSr12hGK4VOaw3M/gbnJtxQQFvJfEtLwpgjo1fVqLK1wxchFHEE5HyYQUGogpPOV02</X509Certificate>
+</X509Data>
+</KeyInfo>
+</KeyDescriptor>
+<fed:TargetScopes>
+<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">
+<wsa:Address>https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/</wsa:Address>
+</wsa:EndpointReference>
+</fed:TargetScopes>
+<fed:ApplicationServiceEndpoint>
+<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">
+<wsa:Address>https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/wsfed</wsa:Address>
+</wsa:EndpointReference>
+</fed:ApplicationServiceEndpoint>
+<fed:PassiveRequestorEndpoint>
+<wsa:EndpointReference xmlns:wsa="http://www.w3.org/2005/08/addressing">
+<wsa:Address>https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/wsfed</wsa:Address>
+</wsa:EndpointReference>
+</fed:PassiveRequestorEndpoint>
+</RoleDescriptor>
+<IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+<KeyDescriptor use="signing">
+<KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#">
+<X509Data>
+<X509Certificate>MIIC8DCCAdigAwIBAgIQO06HXURtw6dDNl8QBHJMGjANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yMTAzMTIyMDAxNDNaFw0yNDAzMTIxOTAxNDNaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAquKiGHHJ428Y1iqQxRi2YHBfGhUhclQhJRn3phS4Z4+3Y2UIv8h2LSDu3QVL9k44EBfGMIWp6HkgHeLya62OVmDhqH2/9udUKfhVxaYKu7Ak1/WzMr8TgUEm98RAL7ZFSM9xZ2p6fT2hD4gHLdCAkBBy6dnzIjM9vLYP82PiHsAGqkeTTHDZhGDWLvWdoMrrMkNkzDObwJzw2IlfkrHvZuimHyJbLhuAlIORa9dvQj8DM9hWLxP6HyJxtJ0mZYFLsLEfqiOMZN5/aUdFuQUIJQwMwqlvACkBLf/2GflEvSWj6gc1wlXhZdZqvshHrZl1qIDkLmsgr9gimUuP9XpJwQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBZ8YeaYeV7WHrPf+1Mcl3Rmt0n4x0+xiA+vdjB5q3gCXDhQgNl8CabwATpY/5ze6cwKeM4MIlgOwZTu86JKKc2nqDAiyF/gtbETGiTE2ucfQjyZyoCr6WSRj1vquoNSockzimEfiwMtnYvUAic/aEklljHz2m7TR6s938E1neE7lVU5Ig5IIvvE/3JbLgIM+CbgTHvZF7SfLAgdpMBPp9+nE6crsbQTYqi5exYeevZ5cwn5v6j1QIJh+s6f5+8IKuPfIxmJj2VDtm5TAo8JZSSr12hGK4VOaw3M/gbnJtxQQFvJfEtLwpgjo1fVqLK1wxchFHEE5HyYQUGogpPOV02</X509Certificate>
+</X509Data>
+</KeyInfo>
+</KeyDescriptor>
+<SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/saml2"/>
+<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/saml2"/>
+<SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://login.microsoftonline.com/2f277f1e-e5f1-4f62-b595-79c2d13afda4/saml2"/>
+</IDPSSODescriptor>
+</EntityDescriptor>
+'''
+
+        Saml2Configuration.objects.create(
+            metadata_conf_url=idp_url, cached_metadata=metadata, slug=idp_name)
+        saml_client, config = saml2_client_for(idp_name)
+
+        saml_xml_response = '<samlp:Response ID="_6bfff445-8077-42ac-ac02-fd68ee76e932" Version="2.0" IssueInstant="2021-04-09T12:53:30.562Z" Destination="https://api.test.badgr.com/account/saml2/saml2.egcc/acs/" InResponseTo="id-dxvhOj4HsG9rlVDVx" xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"><Issuer xmlns="urn:oasis:names:tc:SAML:2.0:assertion">https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/</Issuer><samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status><Assertion ID="_81f43d08-ad43-4d90-83f6-0ef40b4a1f00" IssueInstant="2021-04-09T12:53:30.552Z" Version="2.0" xmlns="urn:oasis:names:tc:SAML:2.0:assertion"><Issuer>https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/</Issuer><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><Reference URI="#_81f43d08-ad43-4d90-83f6-0ef40b4a1f00"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>4Q0j6rn4Mxr2rrbfdqo6R9Bosg8slDbCemFDeLrbIbk=</DigestValue></Reference></SignedInfo><SignatureValue>nNJq4aEHemXDcqmLH/tZ/GyNaiebXsC6twu/cIW+WqcFQwG4zTSxP0DiGlwdkCfvP9j9nwiabGsGzGIsbD0ltO+Mrd8TC6xd6/ufwOpGjvtl9FIx00/9AiVDI9sWw4EHnrkkRwIF8dWRqovNoUnYg3GVDDWKTuCTFvqBM0w4uVnMXUw4vLEvuvWJ5il5O+x1u6Sc1Rg53sHDGRS1psRkN2/+FDMae2gTWRFWpQNMa25XEVXjbsQQk2QNe7rHWfn+nD/rPfFXedrr0ye74O1Joaiv/SUKGrH9p1WUhO3/e2IMAr8KMTRCPU2egrxIBio6mbvxZM6ZtagFFL/trTnwkQ==</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIC8DCCAdigAwIBAgIQe1BF93yCAKJFf+x3pg6UaTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDEylNaWNyb3NvZnQgQXp1cmUgRmVkZXJhdGVkIFNTTyBDZXJ0aWZpY2F0ZTAeFw0yMTA0MDUyMDAxMzlaFw0yNDA0MDUyMDAxMzlaMDQxMjAwBgNVBAMTKU1pY3Jvc29mdCBBenVyZSBGZWRlcmF0ZWQgU1NPIENlcnRpZmljYXRlMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx0WNU1RMo8Pft5Grnr9RHcip0WF4lGA5JkxYgmViVZsO0vihNpG3YYy7GKn+9yosp73sVZ8FBK1UQHScd5yZet8XxM0C8CoXox6t+hUpLzzDNe3dTiwBu3aNx+BUbhLOEWTwguTv8RRniNzk3ESEUwZRb05Cu9aDCz4asiVKI0z3ZcKodBDDInDsJlc91x67y2nhWSDarMwB8U/r+7gG5hiAWwoKONzcP7b/jEsaH9ueOXCEGPsaeIwHVzWfRUTu1RGeItzNZrMTiAcymFTkwj8l9/0jXZHFosO6HtiBGWJL55oyu81dYVYDIgAkBvvkmaofNayYDJMTAfIHiCT5IQIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQC7wygtt7WnKLfHVwTEf/T4ZoYEcxLjWUnGqSa0x5aOZUA6k5c8VPZxqHnShADO/hjQw6DWHysdB8/FuB2jmijfRZ5MSnjosKRvpWLFmspwMpSewNKy+mBVJ0QnpEPXQKlTazBdmw7WGHEAXsG4iMWtkTLZhmKuFukOdCl27qlkBa8OTlBj7uaXRFGmmPgnVI+AjuPrkdMUVuNCCWCy7aNjNjNK5H02jnrwyV3o6ZM0iYdUnX0Urz737YP+gS75DGePAGMXEPQ8ryeriS/FQ9M6/2ptZHLBZ5uCQ4XOShjeDU/qbRW//PFdgKyEtVDhCLwcKfScW2JluwkZ7RHg+m8l</X509Certificate></X509Data></KeyInfo></Signature><Subject><NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">SDent1234@student.egcc.edu</NameID><SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"><SubjectConfirmationData InResponseTo="id-dxvhOj4HsG9rlVDVx" NotOnOrAfter="2021-04-09T13:53:30.402Z" Recipient="https://api.test.badgr.com/account/saml2/saml2.egcc/acs/"/></SubjectConfirmation></Subject><Conditions NotBefore="2021-04-09T12:48:30.402Z" NotOnOrAfter="2021-04-09T13:53:30.402Z"><AudienceRestriction><Audience>https://api.test.badgr.com/account/saml2/saml2.egcc/acs/</Audience></AudienceRestriction></Conditions><AttributeStatement><Attribute Name="http://schemas.microsoft.com/identity/claims/tenantid"><AttributeValue>2f277f1e-e5f1-4f62-b595-79c2d13afda4</AttributeValue></Attribute><Attribute Name="http://schemas.microsoft.com/identity/claims/objectidentifier"><AttributeValue>709cd037-9bbb-4dd2-a6ce-a8838ddcb62a</AttributeValue></Attribute><Attribute Name="http://schemas.microsoft.com/identity/claims/displayname"><AttributeValue>Stu Dent</AttributeValue></Attribute><Attribute Name="http://schemas.microsoft.com/identity/claims/identityprovider"><AttributeValue>https://sts.windows.net/2f277f1e-e5f1-4f62-b595-79c2d13afda4/</AttributeValue></Attribute><Attribute Name="http://schemas.microsoft.com/claims/authnmethodsreferences"><AttributeValue>http://schemas.microsoft.com/ws/2008/06/identity/authenticationmethod/password</AttributeValue></Attribute><Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname"><AttributeValue>Stu</AttributeValue></Attribute><Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname"><AttributeValue>Dent</AttributeValue></Attribute><Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"><AttributeValue>SDent1234@student.egcc.edu</AttributeValue></Attribute><Attribute Name="http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"><AttributeValue>SDent1234@student.egcc.edu</AttributeValue></Attribute></AttributeStatement><AuthnStatement AuthnInstant="2021-04-09T12:53:00.335Z" SessionIndex="_81f43d08-ad43-4d90-83f6-0ef40b4a1f00"><AuthnContext><AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:Password</AuthnContextClassRef></AuthnContext></AuthnStatement></Assertion></samlp:Response>'
+        saml_response = 'PHNhbWxwOlJlc3BvbnNlIElEPSJfZmNkMWI5NjktNmM2Zi00NDE4LWE0Y2YtYzBjNDQ5ZWU4YWZlIiBWZXJzaW9uPSIyLjAiIElzc3VlSW5zdGFudD0iMjAyMS0wNC0wOVQxMzowNjozOS4wODhaIiBEZXN0aW5hdGlvbj0iaHR0cHM6Ly9hcGkudGVzdC5iYWRnci5jb20vYWNjb3VudC9zYW1sMi9zYW1sMi5lZ2NjL2Fjcy8iIEluUmVzcG9uc2VUbz0iaWQtU2c5c1ZoNDVmRnRJRFpCUloiIHhtbG5zOnNhbWxwPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6cHJvdG9jb2wiPjxJc3N1ZXIgeG1sbnM9InVybjpvYXNpczpuYW1lczp0YzpTQU1MOjIuMDphc3NlcnRpb24iPmh0dHBzOi8vc3RzLndpbmRvd3MubmV0LzJmMjc3ZjFlLWU1ZjEtNGY2Mi1iNTk1LTc5YzJkMTNhZmRhNC88L0lzc3Vlcj48c2FtbHA6U3RhdHVzPjxzYW1scDpTdGF0dXNDb2RlIFZhbHVlPSJ1cm46b2FzaXM6bmFtZXM6dGM6U0FNTDoyLjA6c3RhdHVzOlN1Y2Nlc3MiLz48L3NhbWxwOlN0YXR1cz48QXNzZXJ0aW9uIElEPSJfMWYyYzQ3NGMtOThlYS00MjM4LTljYzUtMzQxMmIwYjYyMDAwIiBJc3N1ZUluc3RhbnQ9IjIwMjEtMDQtMDlUMTM6MDY6MzkuMDc4WiIgVmVyc2lvbj0iMi4wIiB4bWxucz0idXJuOm9hc2lzOm5hbWVzOnRjOlNBTUw6Mi4wOmFzc2VydGlvbiI+PElzc3Vlcj5odHRwczovL3N0cy53aW5kb3dzLm5ldC8yZjI3N2YxZS1lNWYxLTRmNjItYjU5NS03OWMyZDEzYWZkYTQvPC9Jc3N1ZXI+PFNpZ25hdHVyZSB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC8wOS94bWxkc2lnIyI+PFNpZ25lZEluZm8+PENhbm9uaWNhbGl6YXRpb25NZXRob2QgQWxnb3JpdGhtPSJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzEwL3htbC1leGMtYzE0biMiLz48U2lnbmF0dXJlTWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIvPjxSZWZlcmVuY2UgVVJJPSIjXzFmMmM0NzRjLTk4ZWEtNDIzOC05Y2M1LTM0MTJiMGI2MjAwMCI+PFRyYW5zZm9ybXM+PFRyYW5zZm9ybSBBbGdvcml0aG09Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvMDkveG1sZHNpZyNlbnZlbG9wZWQtc2lnbmF0dXJlIi8+PFRyYW5zZm9ybSBBbGdvcml0aG09Imh0dHA6Ly93d3cudzMub3JnLzIwMDEvMTAveG1sLWV4Yy1jMTRuIyIvPjwvVHJhbnNmb3Jtcz48RGlnZXN0TWV0aG9kIEFsZ29yaXRobT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxlbmMjc2hhMjU2Ii8+PERpZ2VzdFZhbHVlPkNMZWY5cU5jdnZPY280K3FQWDRJMDVtNW5wS0I3WVJueE8weWNHL2ZXakE9PC9EaWdlc3RWYWx1ZT48L1JlZmVyZW5jZT48L1NpZ25lZEluZm8+PFNpZ25hdHVyZVZhbHVlPmVJNzI4K2ZtV3FJbnk3MEVITzhtTkI1ZEhpdENwMk50MnpycjNwNSs1NzEvOVc3VThLRmhYcnNvZ1ArZjJwNldyT3ZDWXdGSDBPUTVPdSswYUdWUzgvb2NUOTlTYmhrMnVrdzQwS0JTSEllNGFkSkJ3N1A3VTUyd1IzR2paaXczdWJHWld0aG9rMForTFVVZmRlWHJKRndJVkdJSVp4ejcvMyt3TU5DU3hOS0xreDQzb3BFYnJJL1Fsc1d1MUZtd1BDd0o2QW5peXp0RTRFbWNoVVY0cFVDRjN3Z0d4Mnl4a082cEZiTkJ4V3RvNlIzeFNCbHBCZEl0TzFKVnhBb0U0MEgzTGx0ZGdHVTAybFBqdEtXTmQvWmtHaEg1OHkyZGRYZ1VzZXlaOENpZDNMY1FLaGJHRGtjV1hVN0pKeVB5RkI2Z2ZWWWlQZGc5UHBhcjZ6ZDExZz09PC9TaWduYXR1cmVWYWx1ZT48S2V5SW5mbz48WDUwOURhdGE+PFg1MDlDZXJ0aWZpY2F0ZT5NSUlDOERDQ0FkaWdBd0lCQWdJUWUxQkY5M3lDQUtKRmYreDNwZzZVYVRBTkJna3Foa2lHOXcwQkFRc0ZBREEwTVRJd01BWURWUVFERXlsTmFXTnliM052Wm5RZ1FYcDFjbVVnUm1Wa1pYSmhkR1ZrSUZOVFR5QkRaWEowYVdacFkyRjBaVEFlRncweU1UQTBNRFV5TURBeE16bGFGdzB5TkRBME1EVXlNREF4TXpsYU1EUXhNakF3QmdOVkJBTVRLVTFwWTNKdmMyOW1kQ0JCZW5WeVpTQkdaV1JsY21GMFpXUWdVMU5QSUVObGNuUnBabWxqWVhSbE1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBeDBXTlUxUk1vOFBmdDVHcm5yOVJIY2lwMFdGNGxHQTVKa3hZZ21WaVZac08wdmloTnBHM1lZeTdHS24rOXlvc3A3M3NWWjhGQksxVVFIU2NkNXlaZXQ4WHhNMEM4Q29Yb3g2dCtoVXBMenpETmUzZFRpd0J1M2FOeCtCVWJoTE9FV1R3Z3VUdjhSUm5pTnprM0VTRVV3WlJiMDVDdTlhREN6NGFzaVZLSTB6M1pjS29kQkRESW5Ec0psYzkxeDY3eTJuaFdTRGFyTXdCOFUvcis3Z0c1aGlBV3dvS09OemNQN2IvakVzYUg5dWVPWENFR1BzYWVJd0hWeldmUlVUdTFSR2VJdHpOWnJNVGlBY3ltRlRrd2o4bDkvMGpYWkhGb3NPNkh0aUJHV0pMNTVveXU4MWRZVllESWdBa0J2dmttYW9mTmF5WURKTVRBZklIaUNUNUlRSURBUUFCTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFDN3d5Z3R0N1duS0xmSFZ3VEVmL1Q0Wm9ZRWN4TGpXVW5HcVNhMHg1YU9aVUE2azVjOFZQWnhxSG5TaEFETy9oalF3NkRXSHlzZEI4L0Z1QjJqbWlqZlJaNU1Tbmpvc0tSdnBXTEZtc3B3TXBTZXdOS3krbUJWSjBRbnBFUFhRS2xUYXpCZG13N1dHSEVBWHNHNGlNV3RrVExaaG1LdUZ1a09kQ2wyN3Fsa0JhOE9UbEJqN3VhWFJGR21tUGduVkkrQWp1UHJrZE1VVnVOQ0NXQ3k3YU5qTmpOSzVIMDJqbnJ3eVYzbzZaTTBpWWRVblgwVXJ6NzM3WVArZ1M3NURHZVBBR01YRVBROHJ5ZXJpUy9GUTlNNi8ycHRaSExCWjV1Q1E0WE9TaGplRFUvcWJSVy8vUEZkZ0t5RXRWRGhDTHdjS2ZTY1cySmx1d2taN1JIZyttOGw8L1g1MDlDZXJ0aWZpY2F0ZT48L1g1MDlEYXRhPjwvS2V5SW5mbz48L1NpZ25hdHVyZT48U3ViamVjdD48TmFtZUlEIEZvcm1hdD0idXJuOm9hc2lzOm5hbWVzOnRjOlNBTUw6MS4xOm5hbWVpZC1mb3JtYXQ6ZW1haWxBZGRyZXNzIj5TRGVudDEyMzRAc3R1ZGVudC5lZ2NjLmVkdTwvTmFtZUlEPjxTdWJqZWN0Q29uZmlybWF0aW9uIE1ldGhvZD0idXJuOm9hc2lzOm5hbWVzOnRjOlNBTUw6Mi4wOmNtOmJlYXJlciI+PFN1YmplY3RDb25maXJtYXRpb25EYXRhIEluUmVzcG9uc2VUbz0iaWQtU2c5c1ZoNDVmRnRJRFpCUloiIE5vdE9uT3JBZnRlcj0iMjAyMS0wNC0wOVQxNDowNjozOC44NzhaIiBSZWNpcGllbnQ9Imh0dHBzOi8vYXBpLnRlc3QuYmFkZ3IuY29tL2FjY291bnQvc2FtbDIvc2FtbDIuZWdjYy9hY3MvIi8+PC9TdWJqZWN0Q29uZmlybWF0aW9uPjwvU3ViamVjdD48Q29uZGl0aW9ucyBOb3RCZWZvcmU9IjIwMjEtMDQtMDlUMTM6MDE6MzguODc4WiIgTm90T25PckFmdGVyPSIyMDIxLTA0LTA5VDE0OjA2OjM4Ljg3OFoiPjxBdWRpZW5jZVJlc3RyaWN0aW9uPjxBdWRpZW5jZT5odHRwczovL2FwaS50ZXN0LmJhZGdyLmNvbS9hY2NvdW50L3NhbWwyL3NhbWwyLmVnY2MvYWNzLzwvQXVkaWVuY2U+PC9BdWRpZW5jZVJlc3RyaWN0aW9uPjwvQ29uZGl0aW9ucz48QXR0cmlidXRlU3RhdGVtZW50PjxBdHRyaWJ1dGUgTmFtZT0iaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS9pZGVudGl0eS9jbGFpbXMvdGVuYW50aWQiPjxBdHRyaWJ1dGVWYWx1ZT4yZjI3N2YxZS1lNWYxLTRmNjItYjU5NS03OWMyZDEzYWZkYTQ8L0F0dHJpYnV0ZVZhbHVlPjwvQXR0cmlidXRlPjxBdHRyaWJ1dGUgTmFtZT0iaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS9pZGVudGl0eS9jbGFpbXMvb2JqZWN0aWRlbnRpZmllciI+PEF0dHJpYnV0ZVZhbHVlPjcwOWNkMDM3LTliYmItNGRkMi1hNmNlLWE4ODM4ZGRjYjYyYTwvQXR0cmlidXRlVmFsdWU+PC9BdHRyaWJ1dGU+PEF0dHJpYnV0ZSBOYW1lPSJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL2lkZW50aXR5L2NsYWltcy9kaXNwbGF5bmFtZSI+PEF0dHJpYnV0ZVZhbHVlPlN0dSBEZW50PC9BdHRyaWJ1dGVWYWx1ZT48L0F0dHJpYnV0ZT48QXR0cmlidXRlIE5hbWU9Imh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vaWRlbnRpdHkvY2xhaW1zL2lkZW50aXR5cHJvdmlkZXIiPjxBdHRyaWJ1dGVWYWx1ZT5odHRwczovL3N0cy53aW5kb3dzLm5ldC8yZjI3N2YxZS1lNWYxLTRmNjItYjU5NS03OWMyZDEzYWZkYTQvPC9BdHRyaWJ1dGVWYWx1ZT48L0F0dHJpYnV0ZT48QXR0cmlidXRlIE5hbWU9Imh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vY2xhaW1zL2F1dGhubWV0aG9kc3JlZmVyZW5jZXMiPjxBdHRyaWJ1dGVWYWx1ZT5odHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvYXV0aGVudGljYXRpb25tZXRob2QvcGFzc3dvcmQ8L0F0dHJpYnV0ZVZhbHVlPjwvQXR0cmlidXRlPjxBdHRyaWJ1dGUgTmFtZT0iaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZ2l2ZW5uYW1lIj48QXR0cmlidXRlVmFsdWU+U3R1PC9BdHRyaWJ1dGVWYWx1ZT48L0F0dHJpYnV0ZT48QXR0cmlidXRlIE5hbWU9Imh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL3N1cm5hbWUiPjxBdHRyaWJ1dGVWYWx1ZT5EZW50PC9BdHRyaWJ1dGVWYWx1ZT48L0F0dHJpYnV0ZT48QXR0cmlidXRlIE5hbWU9Imh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI+PEF0dHJpYnV0ZVZhbHVlPlNEZW50MTIzNEBzdHVkZW50LmVnY2MuZWR1PC9BdHRyaWJ1dGVWYWx1ZT48L0F0dHJpYnV0ZT48QXR0cmlidXRlIE5hbWU9Imh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiPjxBdHRyaWJ1dGVWYWx1ZT5TRGVudDEyMzRAc3R1ZGVudC5lZ2NjLmVkdTwvQXR0cmlidXRlVmFsdWU+PC9BdHRyaWJ1dGU+PC9BdHRyaWJ1dGVTdGF0ZW1lbnQ+PEF1dGhuU3RhdGVtZW50IEF1dGhuSW5zdGFudD0iMjAyMS0wNC0wOVQxMzowNjozNi42OTNaIiBTZXNzaW9uSW5kZXg9Il8xZjJjNDc0Yy05OGVhLTQyMzgtOWNjNS0zNDEyYjBiNjIwMDAiPjxBdXRobkNvbnRleHQ+PEF1dGhuQ29udGV4dENsYXNzUmVmPnVybjpvYXNpczpuYW1lczp0YzpTQU1MOjIuMDphYzpjbGFzc2VzOlBhc3N3b3JkPC9BdXRobkNvbnRleHRDbGFzc1JlZj48L0F1dGhuQ29udGV4dD48L0F1dGhuU3RhdGVtZW50PjwvQXNzZXJ0aW9uPjwvc2FtbHA6UmVzcG9uc2U+'
+
+        authn_response = saml_client.parse_authn_request_response(
+            saml_response,
+            entity.BINDING_HTTP_POST)
+        self.assertTrue(True)
+
     def test_create_saml2_client(self):
         Saml2Configuration.objects.create(metadata_conf_url="http://example.com", cached_metadata="<xml></xml>",  slug="saml2.test2")
         client = saml2_client_for("saml2.test2")
